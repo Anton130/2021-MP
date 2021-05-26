@@ -1,0 +1,89 @@
+import socket
+import threading
+import queue
+import sys
+import random
+import os
+import re
+
+
+#Server Code
+def RecvData(sock,recvPackets):
+    while True:
+        data,addr = sock.recvfrom(1024) #получаем даные от сокета
+        recvPackets.put((data,addr))
+'''
+class Censor:
+    dictionaryCensor = ['fuck']
+    def checkMessage(self , messageClient):
+        messageWords = re.split('[,]|[ ]|[ ,]|[  ]|[ , ]|[:]|[->]|\\[\\]' , messageClient)
+        negativeWord = []
+        for word in messageWords:
+            if word in self.dictionaryCensor:
+                negativeWord.append(word)
+        return negativeWord
+    def changeMessageToCensor(self,messageClient):
+        result = self.checkMessage(messageClient)
+        if(len(result)>0):
+            for word in result:
+                messageClient = messageClient.replace(word, '*' * len(word))
+        return messageClient
+    def showCensorWord(self):
+        return self.dictionaryCensor
+    def addWordToCensor(self,word):
+        self.dictionaryCensor.append(word)
+    def deleteWordFromCensor(self,word):
+        self.dictionaryCensor.remove(word)
+'''        
+def blackList(self,userId):
+        self.blackListUser.add(userId)   
+def RunServer():
+    host = socket.gethostbyname(socket.gethostname())#переводи имя хоста в ip аддрес
+    #gethostname вернуть имя хоста на которой выполняется эта команад
+    port = 5000
+    print('Server hosting on IP-> '+str(host))
+    s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM) #тип объекта Socket, AF_INET- семейство адрессов интернета, DGRAM протокол UPD
+    s.bind((host,port)) # говорим системе мол дай забинлю этот порт
+    clients = set() # перменная clients тип- множество
+    recvPackets = queue.Queue() # переменная тип очереди FIFO
+
+    print('Server Running...')    
+    threading.Thread(target=RecvData,args=(s,recvPackets)).start() # запускаем поток ф-ции RecvData
+    with open('./log.txt', 'a') as f:
+        while True:
+            while not recvPackets.empty():
+                data,addr = recvPackets.get()# возвращает 2 штуки, первая данные, вторая аддресс
+                if addr not in clients: # если адреса нет в клиентах то добавляем его
+                    clients.add(addr)
+                    continue
+                clients.add(addr) # и почему то делаем это опять?????
+                data = data.decode('utf-8')  #декодим данные в utf 
+                if data.endswith('fuck'): #если пользователь написал 'fuck'
+                        message=str(addr)+data+'\n'
+                        f.write(message)
+                        print(message)
+                        print('Этот пользователь написал нецензурное слово')                   
+                        for c in clients: 
+                            if c!=addr: # если c не тот клиент кто отправил сообщение то                                
+                                s.sendto(data.replace('fuck', '*****').encode('utf-8'), c)# передаем ему это сообщение                               
+                        continue              
+                if data.endswith('qqq'): # если последние символы qqq то выход, и удаляем клиента
+                    clients.remove(addr)
+                    continue
+                f.write(str(addr)+data + '\n')
+                print(str(addr)+data)# печатаем кто и что ответил
+                for c in clients: # для всех cliеtn                               
+                    if c!=addr: # если c не тот клиент кто отправил сообщение то
+                        s.sendto(data.encode('utf-8'),c) # передаем ему это сообщение
+                            
+        s.close()
+#Serevr Code Ends Here
+
+if __name__ == '__main__':
+    if len(sys.argv)==1:
+        RunServer()
+    elif len(sys.argv)==2:
+        RunClient(sys.argv[1])
+    else:
+        print('Run Serevr:-> python Chat.py')
+        print('Run Client:-> python Chat.py <ServerIP>')
